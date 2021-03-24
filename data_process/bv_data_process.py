@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 import os
 
 
@@ -20,6 +21,34 @@ def AdjustIntensity(points, bv_common_settings):
     p_intensity = points[:, 3].copy()
     points[p_intensity > truncation_max_intensiy, 3] = truncation_max_intensiy
     points[:, 3] = points[:, 3] / truncation_max_intensiy
+
+
+def AdjustIntensity_vis(points, bv_common_settings):
+    points_class = []
+    points_solid = []
+    points_dash = []
+    truncation_max_intensiy= bv_common_settings["truncation_max_intensiy"]
+    points[:, 3] = points[:, 3] / 255.0
+    p_intensity = points[:, 3].copy()
+    points[p_intensity > truncation_max_intensiy, 3] = truncation_max_intensiy
+    points[:, 3] = points[:, 3] / truncation_max_intensiy
+    for i,class_point in enumerate(points[:, 4]):
+        if class_point == 3 :
+            points_class = np.array(points[i,:2])
+            points_solid.append(points_class)
+        elif class_point == 1 :
+            points_class = np.array(points[i,:2])
+            points_dash.append(points_class)
+
+    points_solid = np.array(points_solid)
+    points_dash = np.array(points_dash)
+    '''
+    plt.scatter(points_solid[:,1], points_solid[:,0],s = 10,alpha=0.5)
+    plt.scatter(points_dash[:,1], points_dash[:,0],s = 10,alpha=0.5)
+    plt.show()
+    ''' 
+            
+    return points_solid, points_dash
 
 
 def ProduceBVData(points, bv_common_settings, bv_range_settings, if_square_dilate = True):

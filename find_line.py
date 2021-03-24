@@ -136,13 +136,16 @@ def lab_select(img, thresh=(0, 255)):
 
 
 def find_line(binary_warped):
-    # Take a histogram of the bottom half of the image
-    histogram = np.sum(binary_warped[binary_warped.shape[0] // 2:, :], axis=0)
-    # Find the peak of the left and right halves of the histogram
-    # These will be the starting point for the left and right lines
-    midpoint = np.int(histogram.shape[0] / 2)
-    leftx_base = np.argmax(histogram[:midpoint])
-    rightx_base = np.argmax(histogram[midpoint:]) + midpoint
+    '''
+    histogram = np.sum(binary_warped[:, :], axis=0)
+    x = np.arange(0, binary_warped.shape[1], 1)
+    plt.plot(x, histogram)
+    plt.show()
+    '''
+
+    midpoint = np.int(binary_warped.shape[1] / 2)
+    leftx_base = np.argmax(np.sum(binary_warped[:midpoint, :], axis=0))
+    rightx_base = np.argmax(np.sum(binary_warped[midpoint:, :], axis=0)) 
 
     # Choose the number of sliding windows
     nwindows = 9
@@ -156,9 +159,9 @@ def find_line(binary_warped):
     leftx_current = leftx_base
     rightx_current = rightx_base
     # Set the width of the windows +/- margin
-    margin = 100
+    margin = 5
     # Set minimum number of pixels found to recenter window
-    minpix = 50
+    minpix = 8
     # Create empty lists to receive left and right lane pixel indices
     left_lane_inds = []
     right_lane_inds = []
@@ -199,9 +202,16 @@ def find_line(binary_warped):
     righty = nonzeroy[right_lane_inds]
 
     # Fit a second order polynomial to each
-    left_fit = np.polyfit(lefty, leftx, 2)
-    right_fit = np.polyfit(righty, rightx, 2)
+    left_fit = np.polyfit(lefty, leftx, 3)
+    right_fit = np.polyfit(righty, rightx, 3)
+    
+    left_fited = np.polyval(left_fit, leftx)
+    right_fited = np.polyval(right_fit, rightx)
+    plt.plot(leftx, left_fited)
+    plt.plot(rightx, right_fited)
 
+    plt.show()
+    
     return left_fit, right_fit, left_lane_inds, right_lane_inds
 
 

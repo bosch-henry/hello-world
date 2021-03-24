@@ -108,6 +108,7 @@ def ReadSelectedPara(para_name_list):
     P_default = {}
     P_world_default = {}
     
+    # intrinsic(相机内参)
     K_default["1"] = np.array([[957.994,   0,        790.335,  0],
                                [0,         955.3280, 250.6631, 0],
                                [0,         0,        1,        0]]).astype("float32")
@@ -126,6 +127,7 @@ def ReadSelectedPara(para_name_list):
     K_default["6"] = np.array([[4728.8 ,   0,        876.11,  0],
                                [0,         4717,     411.5,   0],
                                [0,         0,        1,       0]]).astype("float32")
+    #extrinsic(相机&Lidar外參)
     P_default["1"] = np.array([[0.00554604,      -0.999971,       -0.00523653,     0.0316362],
                        [-0.000379382,    0.00523451,      -0.999986,       0.0380934],
                        [0.999985,        0.00554795,      -0.000350341,    0.409066],

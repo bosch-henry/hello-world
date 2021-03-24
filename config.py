@@ -42,7 +42,7 @@ def GetBVRangeSettings(lidar_ids):
         # farthest detection distance to the right of the car
         "right_distance": 20
     }
-    '''
+    '''    
     assert(len(lidar_ids) > 0)
     for lidar_id in lidar_ids:
         assert(int(lidar_id) in range(1, 7))
@@ -62,6 +62,6 @@ def GetBVRangeSettings(lidar_ids):
 
     if "3" not in lidar_ids and "4" not in lidar_ids:
         bv_settings["min_distance"] = 0
-    '''
+    '''    
 
     return bv_settings

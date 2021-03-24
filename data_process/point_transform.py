@@ -2,6 +2,7 @@ import numpy as np
 import math
 import sys
 import cv2
+import matplotlib.pyplot as plt
 
 sys.path.append("..")
 from util.color_table import color_table
@@ -63,10 +64,16 @@ def GetWorldToCamMatrix(new_angle, T):
 
 def GetMatrices(img_shape):
     img_h, img_w = img_shape
+    '''
     P_world = np.array([[0.999972   ,           0,  0.00750485,           0],
                         [0          ,           1,           0,           0],
                         [-0.00750485,           0,    0.999972,       1.909],
                         [0          ,           0,          0,           1]])
+    '''
+    P_world = np.array([[ 1,   0,    0,    0],
+                        [ 0,   1,    0,    0],
+                        [ 0,   0,    1,    0],
+                        [ 0,   0,    0,    1]]).astype("float32")
 
     K = np.array([[ 380.0,      0, float(img_w / 2), 0],
                   [     0,  380.0, float(img_h / 2), 0], 
@@ -77,9 +84,9 @@ def GetMatrices(img_shape):
     angle = [0, -math.pi*(16.0/18.0), math.pi/2]
     P = GetWorldToCamMatrix(angle, T)
 
-    # print(K)
-    # print(P)
-    # print(P_world)  
+    #print(K)
+    #print(P)
+    #print(P_world)  
     return K, P, P_world
 
 
@@ -88,7 +95,7 @@ def DrawPointOnImg(img, im_x, im_y, color):
 
     im_height, im_width = img.shape[:2]
 
-    start_x = max(0, np.ceil(im_x - vis_point_radius))
+    start_x = max(0, np.ceil(im_x - vis_point_radius))   #np.ceil 向上取整
     end_x = min(im_width -1, np.ceil(im_x + vis_point_radius) - 1) + 1
     start_y = max(0, np.ceil(im_y - vis_point_radius))
     end_y = min(im_height -1, np.ceil(im_y + vis_point_radius) - 1) + 1
@@ -159,7 +166,110 @@ def VisualizePointsClass(points_input):
                                      [output_img_h, output_img_w1], 
                                      K, P, P_world, color_table_for_class)
 
-    #vis_img = np.concatenate([intensity_show, class_show], axis = 1)
+    vis_img = np.concatenate([intensity_show, class_show], axis = 1)
     #vis_img = np.concatenate(class_show, axis = 0)
 
-    return class_show
+    return vis_img
+
+
+def histogram_view(value):
+    # matplotlib.axes.Axes.hist() 方法的接口
+    n, bins, patches = plt.hist(value, 10,(-4,0))
+    bins_count = np.argmax(n)
+    origin_left = 0.5*(-4+(4/10)*bins_count+(-4+(4/10)*(bins_count+1)))
+
+    n, bins, patches = plt.hist(value, 10,(0,4))
+    bins_count = np.argmax(n)
+    origin_right = 0.5*((4/10)*bins_count+((4/10)*(bins_count+1)))
+    
+    print(bins_count)
+    plt.grid(axis='y', alpha=0.75)
+    plt.xlabel('Dy')
+    plt.ylabel('count')
+    plt.title('My Very Own Histogram')
+    plt.text(23, 45, r'$\mu=15, b=3$')
+    maxfreq = n.max()
+    # 设置y轴的上限
+    plt.ylim(ymax=np.ceil(maxfreq / 10) * 10 if maxfreq % 10 else maxfreq + 10)
+    plt.show()
+    
+   
+def find_line(point):
+
+    n, bins, patches = plt.hist(point[:,1], 10,(-4,0))
+    bins_count = np.argmax(n)
+    origin_left = 0.5*(-4+(4/10)*bins_count+(-4+(4/10)*(bins_count+1)))
+
+    n, bins, patches = plt.hist(point[:,1], 10,(0,4))
+    bins_count = np.argmax(n)
+    origin_right = 0.5*((4/10)*bins_count+((4/10)*(bins_count+1)))
+
+    lefty_current = origin_left
+    righty_current = origin_right
+
+    plt.clf() # 清图。
+    plt.cla() # 清坐标轴。
+
+    window_height = 5
+    fit_distence = 40
+    margin = 2
+    minpix = 10
+    nwindows = np.int(fit_distence/window_height)
+
+    nonzeroy = point[:,1]
+    nonzerox = point[:,0]
+    left_lane_inds = []
+    right_lane_inds = []
+    leftx = []
+    lefty = []
+    rightx = []
+    righty = []
+
+    # Step through the windows one by one
+    for window in range(nwindows):
+        # Identify window boundaries in x and y (and right and left)
+        lefty_temp = []
+        righty_temp = []
+        win_x_low = window * window_height
+        win_x_high = (window + 1)* window_height
+        win_lefty_low = lefty_current - margin
+        win_lefty_high = lefty_current + margin
+        win_righty_low = righty_current - margin
+        win_righty_high = righty_current + margin
+        # Identify the nonzero pixels in x and y within the window
+        for i in range(len(nonzerox)):
+            if  nonzerox[i] >= win_x_low and nonzerox[i]< win_x_high and nonzeroy[i] >= win_lefty_low and nonzeroy[i] < win_lefty_high :
+                    #print(i)
+                    left_lane_inds.append(i)
+                    leftx.append(nonzerox[i])
+                    lefty.append(nonzeroy[i])
+                    lefty_temp.append(nonzeroy[i])
+            elif nonzerox[i] >= win_x_low and nonzerox[i]< win_x_high and nonzeroy[i] >= win_righty_low and nonzeroy[i] < win_righty_high :
+                    right_lane_inds.append(i)
+                    rightx.append(nonzerox[i])
+                    righty.append(nonzeroy[i])
+                    righty_temp.append(nonzeroy[i])
+            # If you found > minpix pixels, recenter next window on their mean position
+            if len(left_lane_inds) > minpix:
+                lefty_current = np.mean(lefty_temp)
+            if len(right_lane_inds) > minpix:
+                righty_current = np.mean(righty_temp)
+        #print(lefty_current)
+        #print(righty_current)
+    # Fit a second order polynomial to each
+    left_fit = np.polyfit(leftx, lefty, 3)
+    right_fit = np.polyfit(rightx, righty, 3)
+    
+    plt.scatter(point[:,1], point[:,0],s = 8,alpha=0.5, c='#A52A2A')
+    func_l = np.poly1d(np.array(left_fit).astype(float))
+    func_r = np.poly1d(np.array(right_fit).astype(float))
+    x = np.linspace(0, 40, 40)
+    left_fited = func_l(x)
+    right_fited = func_r(x)
+
+    plt.plot(left_fited,x)
+    plt.plot(right_fited,x)
+
+    plt.show()
+    
+    return left_fit, right_fit, left_lane_inds, right_lane_inds
