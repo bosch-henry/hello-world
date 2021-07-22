@@ -1,20 +1,70 @@
 import numpy as np
-import math
 import sys
 import cv2
 import matplotlib.pyplot as plt
+import math
+import matplotlib.patches as patches
+from PIL import Image
 
 sys.path.append("..")
 from util.color_table import color_table
 from util.color_table_for_class import color_table_for_class
+from shapely import geometry
 
 
-def ProjectPointsToWorld(points_input_set, parameters):
+P_world_default = np.array([[1, 0, 0, 0],
+                            [0, 1, 0, 0],
+                            [0, 0, 1, 0],
+                            [0, 0, 0, 1]]).astype("float32")
+'''
+P_world_default_2 = np.array([[0.99998629, 0, 0.005236, 0],
+                            [0, 1, 0, 0],
+                            [-0.005236, 0, 0.99998629, 0],
+                            [0, 0, 0, 1]]).astype("float32")                          
+P_world_default = np.array([[0.99997563, 0.00698126, 0],
+                            [-0.00698126, 0.99997563, 0],
+                            [0, 0, 1]]).astype("float32")
+P_world_default_2 = np.array([[0.9998477, 0, 0.0174524],
+                              [0, 1, 0],
+                              [-0.0174524, 0, 0.9998477]]).astype("float32")
+
+Alfa = 0  * math.pi/180     #rote by x axle, roll angle
+Beta = 0  * math.pi/180     #rote by y axle, pich angle
+Gama = -0.4  * math.pi/180     #rote by z axle, yaw angle
+
+R_Alfa = np.array([[1, 0 ,0],[0, math.cos(Alfa), -math.sin(Alfa)], [0, math.sin(Alfa), math.cos(Alfa)]]).astype("float32")
+R_Beta = np.array([[math.cos(Beta), 0, math.sin(Beta)], [0, 1, 0], [-math.sin(Beta), 0, math.cos(Beta)]]).astype("float32")
+R_Gama = np.array([[math.cos(Gama), -math.sin(Gama), 0],[math.sin(Gama), math.cos(Gama), 0], [0, 0, 1]]).astype("float32")
+
+R = np.zeros((3, 4))
+T = np.array([1.354, 0, 1.452])
+R[:3, :3] = np.array([R_Alfa.dot(R_Beta).dot(R_Gama)])
+R[:, 3] = T.T
+
+P = np.vstack((R, np.array([0, 0, 0, 1])))
+'''
+
+def ProjectPointsToWorld_one(points_input_set):
+
+    P_world = P_world_default
+
+    points0 = points_input_set[:, :4].copy()
+    points0[:, 3] = 1
+    points1 = P_world.dot(points0.T)
+    points1 = points1.T
+
+    points_output_set= points_input_set.copy()
+    points_output_set[:, :3] = points1[:, :3]
+    return points_output_set
+
+
+
+def ProjectPointsToWorld(points_input_set):
     lidar_id_list = points_input_set.keys()
     points_output_set = {}
 
     for lidar_id in lidar_id_list:
-        P_world = parameters[lidar_id]["P_world"]
+        P_world = P_world_default
 
         points0 = points_input_set[lidar_id][:, :4].copy()
         points0[:, 3] = 1
@@ -81,7 +131,8 @@ def GetMatrices(img_shape):
 
     #if you want to change the view point, you can change T and angle
     T = np.array([0, 0, 38]).T
-    angle = [0, -math.pi*(16.0/18.0), math.pi/2]
+    #angle = [0, -math.pi*(16.0/18.0), math.pi/2]
+    angle = [0, -math.pi, math.pi/2]
     P = GetWorldToCamMatrix(angle, T)
 
     #print(K)
@@ -173,14 +224,17 @@ def VisualizePointsClass(points_input):
 
 
 def histogram_view(value):
+    nonzeroy = value[:, 1]
+    #nonzeroy = point[:, 1] * (-1)
+    nonzerox = value[:, 0]
     # matplotlib.axes.Axes.hist() 方法的接口
-    n, bins, patches = plt.hist(value, 10,(-4,0))
+    n, bins, patches = plt.hist(nonzeroy, 50,(-4,0))
     bins_count = np.argmax(n)
-    origin_left = 0.5*(-4+(4/10)*bins_count+(-4+(4/10)*(bins_count+1)))
+    origin_left = 0.5*(-4+(4/50)*bins_count+(-4+(4/50)*(bins_count+1)))
 
-    n, bins, patches = plt.hist(value, 10,(0,4))
+    n, bins, patches = plt.hist(nonzeroy, 50,(0,4))
     bins_count = np.argmax(n)
-    origin_right = 0.5*((4/10)*bins_count+((4/10)*(bins_count+1)))
+    origin_right = 0.5*((4/50)*bins_count+((4/50)*(bins_count+1)))
     
     print(bins_count)
     plt.grid(axis='y', alpha=0.75)
@@ -192,84 +246,225 @@ def histogram_view(value):
     # 设置y轴的上限
     plt.ylim(ymax=np.ceil(maxfreq / 10) * 10 if maxfreq % 10 else maxfreq + 10)
     plt.show()
-    
-   
-def find_line(point):
 
-    n, bins, patches = plt.hist(point[:,1], 10,(-4,0))
-    bins_count = np.argmax(n)
-    origin_left = 0.5*(-4+(4/10)*bins_count+(-4+(4/10)*(bins_count+1)))
+def center_exchange(center_y, point_fit, dx):
+    dev = center_y[1:] - center_y[:-1]
+    exchange_index = np.where(dev == 0)[0] + 1
+    func_ = np.poly1d(np.array(point_fit).astype(float))
+    center_y[exchange_index] = func_(dx[exchange_index])
+    center_y[0] = func_(dx[0])
 
-    n, bins, patches = plt.hist(point[:,1], 10,(0,4))
+    return center_y
+
+def line_fit_reshape():
+    pass
+
+
+
+def find_line(point, paint_address, Saving_fitting_img):
+    nonzeroy = point[:, 1]
+    #nonzeroy = point[:, 1] * (-1)
+    nonzerox = point[:, 0]
+
+    n, bins, patches = plt.hist(nonzeroy, 20, (-4, 0))
     bins_count = np.argmax(n)
-    origin_right = 0.5*((4/10)*bins_count+((4/10)*(bins_count+1)))
+    origin_right = 0.5 * (-4 + (4 / 20) * bins_count + (-4 + (4 / 20) * (bins_count + 1)))
+
+    n, bins, patches = plt.hist(nonzeroy, 20, (0, 4))
+    bins_count = np.argmax(n)
+    origin_left =  0.5 * ((4 / 20) * bins_count + ((4 / 20) * (bins_count + 1)))
 
     lefty_current = origin_left
     righty_current = origin_right
 
-    plt.clf() # 清图。
-    plt.cla() # 清坐标轴。
+    plt.close()
 
     window_height = 5
     fit_distence = 40
-    margin = 2
-    minpix = 10
-    nwindows = np.int(fit_distence/window_height)
+    start_distence = -15
+    margin = 0.8
+    minpix = 8
+    nwindows = np.int((fit_distence - start_distence) / window_height)
 
-    nonzeroy = point[:,1]
-    nonzerox = point[:,0]
-    left_lane_inds = []
-    right_lane_inds = []
     leftx = []
     lefty = []
     rightx = []
     righty = []
+    lefty_center = []
+    righty_center = []
+    dx_center = []
 
     # Step through the windows one by one
     for window in range(nwindows):
         # Identify window boundaries in x and y (and right and left)
-        lefty_temp = []
-        righty_temp = []
-        win_x_low = window * window_height
-        win_x_high = (window + 1)* window_height
+        win_x_low = window * window_height + start_distence
+        win_x_high = (window + 1) * window_height + start_distence
+        dx = win_x_low + window_height/2
         win_lefty_low = lefty_current - margin
         win_lefty_high = lefty_current + margin
         win_righty_low = righty_current - margin
         win_righty_high = righty_current + margin
+        left_lane_inds = []
+        right_lane_inds = []
+        win_center_L = []
+        win_center_R = []
+        dx_center.append(dx)
+
         # Identify the nonzero pixels in x and y within the window
         for i in range(len(nonzerox)):
-            if  nonzerox[i] >= win_x_low and nonzerox[i]< win_x_high and nonzeroy[i] >= win_lefty_low and nonzeroy[i] < win_lefty_high :
-                    #print(i)
-                    left_lane_inds.append(i)
-                    leftx.append(nonzerox[i])
-                    lefty.append(nonzeroy[i])
-                    lefty_temp.append(nonzeroy[i])
-            elif nonzerox[i] >= win_x_low and nonzerox[i]< win_x_high and nonzeroy[i] >= win_righty_low and nonzeroy[i] < win_righty_high :
-                    right_lane_inds.append(i)
-                    rightx.append(nonzerox[i])
-                    righty.append(nonzeroy[i])
-                    righty_temp.append(nonzeroy[i])
-            # If you found > minpix pixels, recenter next window on their mean position
-            if len(left_lane_inds) > minpix:
-                lefty_current = np.mean(lefty_temp)
-            if len(right_lane_inds) > minpix:
-                righty_current = np.mean(righty_temp)
-        #print(lefty_current)
-        #print(righty_current)
-    # Fit a second order polynomial to each
-    left_fit = np.polyfit(leftx, lefty, 3)
-    right_fit = np.polyfit(rightx, righty, 3)
-    
-    plt.scatter(point[:,1], point[:,0],s = 8,alpha=0.5, c='#A52A2A')
-    func_l = np.poly1d(np.array(left_fit).astype(float))
-    func_r = np.poly1d(np.array(right_fit).astype(float))
-    x = np.linspace(0, 40, 40)
-    left_fited = func_l(x)
-    right_fited = func_r(x)
+            if nonzerox[i] >= win_x_low and nonzerox[i] < win_x_high and \
+                    nonzeroy[i] >= win_lefty_low and nonzeroy[i] < win_lefty_high:
+                left_lane_inds.append(i)
+                leftx.append(nonzerox[i])
+                lefty.append(nonzeroy[i])
+                win_center_L.append(nonzeroy[i])
 
-    plt.plot(left_fited,x)
-    plt.plot(right_fited,x)
+            elif nonzerox[i] >= win_x_low and nonzerox[i] < win_x_high and \
+                    nonzeroy[i] >= win_righty_low and nonzeroy[i] < win_righty_high:
+                right_lane_inds.append(i)
+                rightx.append(nonzerox[i])
+                righty.append(nonzeroy[i])
+                win_center_R.append(nonzeroy[i])
 
-    plt.show()
-    
-    return left_fit, right_fit, left_lane_inds, right_lane_inds
+        # If you found > minpix pixels, recenter next window on their mean position
+        if len(left_lane_inds) > minpix:
+            lefty_current = np.mean(win_center_L)
+        else:
+            pass
+        lefty_center.append(lefty_current)
+        if len(right_lane_inds) > minpix:
+            righty_current = np.mean(win_center_R)
+        else:
+            pass
+        righty_center.append(righty_current)
+
+    size = 11
+    dx = np.array(dx_center)
+
+    if (np.array(righty)).size == 0 and (np.array(lefty)).size == 0:
+        righty_center = np.full((1, size), np.nan)
+        lefty_center = np.full((1, size), np.nan)
+    elif (np.array(righty)).size == 0 and (np.array(lefty)).size != 0:
+        righty_center = np.full((1, size), np.nan)
+        left_fit = np.polyfit(leftx, lefty, 2)
+        lefty_center = center_exchange(np.array(lefty_center), left_fit, dx)
+    elif (np.array(righty)).size != 0 and (np.array(lefty)).size == 0:
+        lefty_center = np.full((1, size), np.nan)
+        right_fit = np.polyfit(rightx, righty, 2)
+        righty_center = center_exchange(np.array(righty_center),right_fit,dx)
+    else :
+        left_fit = np.polyfit(leftx, lefty, 2)
+        lefty_center = center_exchange(np.array(lefty_center), left_fit, dx)
+        right_fit = np.polyfit(rightx, righty, 2)
+        righty_center = center_exchange(np.array(righty_center), right_fit, dx)
+
+    #print(np.size(righty_center))
+    # if (abs(lefty_center[10]) + abs(righty_center[10])) > 6:
+
+    if Saving_fitting_img == True:
+        fig = plt.figure()
+        ax = fig.add_subplot(1, 1, 1)
+
+        plt.scatter(lefty, leftx, s = 6,alpha=0.5, c='#A52A2A')
+        plt.scatter(righty, rightx, s=6, alpha=0.5, c='#A52A2A')
+
+        # rect0 = plt.Rectangle(((lefty_center[0] - margin), start_distence), 2 * margin, window_height, linewidth=1, edgecolor='r', facecolor='none')
+        # ax.add_patch(rect0)
+        # rect1 = plt.Rectangle(((lefty_center[1] - margin), window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='r', facecolor='none')
+        # ax.add_patch(rect1)
+        # rect2 = plt.Rectangle(((lefty_center[2] - margin), 2 * window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='r', facecolor='none')
+        # ax.add_patch(rect2)
+        # rect3 = plt.Rectangle(((lefty_center[10] - margin), 10 * window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='r', facecolor='none')
+        # ax.add_patch(rect3)
+        # rect4 = plt.Rectangle(((righty_center[10] - margin), 10 * window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='r', facecolor='none')
+        # ax.add_patch(rect4)
+        #
+        # #plt.plot(left_fited,x)
+        # #plt.plot(right_fited,x)
+
+        plt.scatter(lefty_center, dx, s=8, alpha=0.8, c='#0000FF',marker='x')
+        plt.scatter(righty_center, dx, s=8, alpha=0.8, c='#0000FF',marker='x')
+        plt.savefig(paint_address)
+    # # plt.show()
+
+    return lefty_center, righty_center, dx, np.array(leftx), np.array(lefty), np.array(rightx), np.array(righty)
+    #return lefty_center[5:20], righty_center[5:20], dx[5:20]
+
+def if_inPoly(polygon, Points):
+    line = geometry.LineString(polygon)
+    point = geometry.Point(Points)
+    polygon = geometry.Polygon(line)
+    return polygon.contains(point)
+
+def calculate_center(angle, posego, D_l, D_r):
+    if angle >= 0:
+        center_leftx = posego[0] - D_l * np.sin(angle)
+        center_lefty = posego[1] + D_l * np.cos(angle)
+        center_rightx = posego[0] + D_r * np.sin(angle)
+        center_righty = posego[1] - D_r * np.cos(angle)
+    else:
+        center_leftx = posego[0] + D_l * np.sin(angle)
+        center_lefty = posego[1] - D_l * np.cos(angle)
+        center_rightx = posego[0] - D_r * np.sin(angle)
+        center_righty = posego[1] + D_r * np.cos(angle)
+
+    return center_leftx,center_lefty,center_rightx,center_righty
+
+
+def find_line_full (point_list, posego, angle):
+    point = np.array(point_list)
+    nonzeroy = point[:, 1]
+    nonzerox = point[:, 0]
+
+    left_current = [0, 1.5]
+    right_current = [0, -1.5]
+    radius = 1
+    minpix = 5
+
+    # leftx = []
+    # lefty = []
+    # rightx = []
+    # righty = []
+    left_center = []
+    right_center = []
+
+    for j in range(posego[:,0]):
+        left_lane_inds = []
+        right_lane_inds = []
+        win_center_L = []
+        win_center_R = []
+
+        #center_leftx, center_lefty, center_rightx, center_righty = calculate_center(angle[j], posego[j,:], D_l, D_r)
+
+        for i in range(len(nonzerox)):
+            distence_center_left = np.sqrt(np.square(nonzerox[i]-left_current[0])+
+                                           np.square(nonzeroy[i]-left_current[1]))
+            distence_center_right = np.sqrt(np.square(nonzerox[i]-right_current[0])+
+                                            np.square(nonzeroy[i]-right_current[1]))
+            if distence_center_left <= radius:
+                left_lane_inds.append(i)
+                # leftx.append(nonzerox[i])
+                # lefty.append(nonzeroy[i])
+                win_center_L.append(nonzeroy[i])
+            if distence_center_right <= radius:
+                right_lane_inds.append(i)
+                # rightx.append(nonzerox[i])
+                # righty.append(nonzeroy[i])
+                win_center_R.append(nonzeroy[i])
+
+        if len(left_lane_inds) > minpix:
+            lefty_current = np.mean(win_center_L)
+            leftx_current = posego[j,0]-np.tan(angle[j])(lefty_current-posego[j,1])
+            left_current = np.array(leftx_current, lefty_current)
+        else:
+            pass
+        left_center.append(left_current)
+
+        if len(right_lane_inds) > minpix:
+            righty_current = np.mean(win_center_R)
+            rightx_current = posego[j, 0] - np.tan(angle[j])(righty_current - posego[j, 1])
+            right_current = np.array(rightx_current,righty_current)
+        else:
+            pass
+        right_center.append(right_current)
+    return np.vstack(left_center), np.vstack(right_center)

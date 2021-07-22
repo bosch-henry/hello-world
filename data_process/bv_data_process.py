@@ -23,32 +23,27 @@ def AdjustIntensity(points, bv_common_settings):
     points[:, 3] = points[:, 3] / truncation_max_intensiy
 
 
-def AdjustIntensity_vis(points, bv_common_settings):
-    points_class = []
+def AdjustIntensity_fit(points, bv_common_settings):
+
     points_solid = []
     points_dash = []
-    truncation_max_intensiy= bv_common_settings["truncation_max_intensiy"]
-    points[:, 3] = points[:, 3] / 255.0
-    p_intensity = points[:, 3].copy()
-    points[p_intensity > truncation_max_intensiy, 3] = truncation_max_intensiy
-    points[:, 3] = points[:, 3] / truncation_max_intensiy
+    # truncation_max_intensiy= bv_common_settings["truncation_max_intensiy"]
+    # line_fit_start=bv_common_settings["line_fitted_start_value"]
+    # delete_index=np.where(points[:,0]<line_fit_start)
+    # pointsfit = np.delete(points, delete_index, 0)
+    # #points[:, 3] = points[:, 3] / 255.0
+    # #p_intensity = points[:, 3].copy()
+    # #points[p_intensity > truncation_max_intensiy, 3] = truncation_max_intensiy
+    # #points[:, 3] = points[:, 3] / truncation_max_intensiy
     for i,class_point in enumerate(points[:, 4]):
-        if class_point == 3 :
+        if class_point == 3 or class_point == 5 or class_point == 22 or class_point == 27:
             points_class = np.array(points[i,:2])
             points_solid.append(points_class)
         elif class_point == 1 :
             points_class = np.array(points[i,:2])
             points_dash.append(points_class)
-
-    points_solid = np.array(points_solid)
-    points_dash = np.array(points_dash)
-    '''
-    plt.scatter(points_solid[:,1], points_solid[:,0],s = 10,alpha=0.5)
-    plt.scatter(points_dash[:,1], points_dash[:,0],s = 10,alpha=0.5)
-    plt.show()
-    ''' 
             
-    return points_solid, points_dash
+    return np.array(points_solid), np.array(points_dash)
 
 
 def ProduceBVData(points, bv_common_settings, bv_range_settings, if_square_dilate = True):
@@ -145,6 +140,50 @@ def GetPointsClassFromBV(points_input_set, bv_label_map, bv_common_settings, bv_
 
     return points_class_set
 
+def GetPointsClassFromBV_one(points_input_set, bv_label_map, bv_common_settings, bv_range_settings):
+
+    height_shift = bv_common_settings['train_height_shift']
+    shifted_min_height = bv_common_settings['shifted_min_height']
+    shifted_max_height = bv_common_settings['shifted_max_height']
+
+    distance_resolution = bv_common_settings["distance_resolution_train"]
+    width_resolution = bv_common_settings["width_resolution_train"]
+
+    max_distance = bv_range_settings["max_distance"]
+    min_distance = bv_range_settings["min_distance"]
+    left_distance = bv_range_settings["left_distance"]
+    right_distance = bv_range_settings["right_distance"]
+    background_intensity_shift = bv_common_settings["train_background_intensity_shift"]
+    max_distance_in_pixel = max_distance * distance_resolution
+    left_distance_in_pixel = left_distance * width_resolution
+
+    bv_im_width = int((right_distance + left_distance)*width_resolution)
+    bv_im_height = int((max_distance - min_distance) * distance_resolution)
+
+    points_class_set = {}
+
+    points = points_input_set
+    point_num = points.shape[0]
+    point_classes = np.zeros([point_num, 1]).astype("float32")
+    h = points[:, 2] + height_shift
+    #points[:,3] = points[:,3] - background_intensity_shift
+
+    for i in range(point_num):
+        x = points[i, 0]*distance_resolution
+        y = points[i, 1]*width_resolution
+        z = h[i]
+        if (z < shifted_min_height) or (z > shifted_max_height):
+            continue
+
+        im_x = int(-y + left_distance_in_pixel)
+        im_y = int(max_distance_in_pixel - x)
+
+        if im_x >= 0 and im_x < bv_im_width and im_y >= 0 and im_y < bv_im_height:
+            point_classes[i] = bv_label_map[im_y, im_x]
+
+        points_class_set = point_classes
+
+    return points_class_set
 
 
 

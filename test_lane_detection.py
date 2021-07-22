@@ -43,7 +43,6 @@ checkpoint = torch.load(MODEL_NAME)
 model.load_state_dict(checkpoint['state_dict'])
 model.eval()
 
-
 test_data_subfolders = glob.glob(os.path.join(TEST_DATA_FOLDER, "*"))
 test_data_subfolders.sort()
 
@@ -54,6 +53,7 @@ for subfolder in test_data_subfolders:
     pointcloud_name_set_list, _, para_name_set = GetTestDataList(subfolder, LIDAR_IDs)
 
     parameters = ReadSelectedPara(para_name_set)
+    print(parameters)
 
     output_path = os.path.join(POINTS_WITH_CLASS_FOLDER, subfolder.split("/")[-1])
     if not os.path.exists(output_path):

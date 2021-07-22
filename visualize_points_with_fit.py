@@ -1,75 +1,147 @@
 from config import *
 from util.color_table_for_class import color_table_for_class
+from network.sync_batchnorm.replicate import patch_replication_callback
+from network.bv_parsing_net import *
 from util.file_util import *
 from data_process.point_transform import *
 from data_process.bv_data_process import *
 import cv2
+import torch
+#import pandas as pd
+import time
 
 import os
 import glob
 
-#LIDAR_IDs is defined in config.py
-BV_RANGE_SETTINGS = GetBVRangeSettings(LIDAR_IDs)
+from torch.multiprocessing import Pool, Process, set_start_method
 
-if not os.path.exists(VIS_FOLDER):
-    os.mkdir(VIS_FOLDER)
 
-test_data_subfolders = glob.glob(os.path.join(POINTS_WITH_CLASS_FOLDER, "*"))
-test_data_subfolders.sort()
 
-#vars' name end with "_set" means it containes some items which are indexed by lidar_name
-for subfolder in test_data_subfolders:
+def Inference(model, bv_data):
+    h, w = bv_data.shape[:2]
+    input_data = np.zeros((1, 2, h, w)).astype("float32")
+
+    input_data[0, 0, :, :] = bv_data[:, :, 0]
+    input_data[0, 1, :, :] = bv_data[:, :, 1]
+
+    input_data = torch.from_numpy(input_data).cuda()
+
+    _, _, output_label_p_map = model(input_data)
+
+    output_label_p_map = np.array(output_label_p_map.detach().cpu()).squeeze()
+
+    output = np.argmax(output_label_p_map, 0)
+    label_map = np.asarray(output).astype("uint8")
+
+    return label_map
+
+def points_class_chose(subfolder, Saving_intensity_img, Saving_fitting_img):
+
     print("processing %s" % subfolder)
 
-    pointcloud_name_set_list, _, para_name_set = GetTestDataList(
-        subfolder, LIDAR_IDs)
+    pcd_name_set_list, num, para_name_set = GetTestDataList(subfolder, LIDAR_IDs)
 
-    parameters = ReadSelectedPara(para_name_set)
-
-    output_path = os.path.join(VIS_FOLDER, subfolder.split("/")[-1])
+    output_path = subfolder
     if not os.path.exists(output_path):
         os.mkdir(output_path)
+    vis_path = os.path.join(output_path, "vis")
+    if not os.path.exists(vis_path):
+        os.mkdir(vis_path)
 
-    for j, pc_name_set in enumerate(pointcloud_name_set_list):
-        print("%d / %d" % (j + 1, len(pointcloud_name_set_list)))
+    BV_RANGE_SETTINGS = bv_settings
+    coef_output = []
+    index_name = []
+    point_x = []
+    point_lefty = []
+    point_righty = []
+    point_raw_leftx = []
+    point_raw_lefty = []
+    point_raw_rightx = []
+    point_raw_righty = []
 
-        points_input_set = ReadSelectedPoints(pc_name_set)
-        points_trans_set = ProjectPointsToWorld(points_input_set, parameters)
-        points_merge = MergePoints(points_trans_set)
-        points_solid, points_dash = AdjustIntensity_vis(points_merge, BV_COMMON_SETTINGS)
-        points_line = np.concatenate((points_solid, points_dash), axis=0)
-       
-        #origin_right,origin_left = histogram_view(points_solid[:,1])
-     
-        left_fit, right_fit, left_lane_inds, right_lane_inds = find_line(points_line)
+    for j, pc_name_set in enumerate(pcd_name_set_list):
+        print("%d / %d" % (j+1, num))
+        time1 = time.time()
+        points_input_set = ReadPcdFile(pc_name_set)
+        print(pc_name_set)
+        points_trans_set = ProjectPointsToWorld_one(points_input_set)
 
-        '''
-        vis_img = VisualizePointsClass(points_merge)
-        cv2.imshow("1", vis_img)
-        cv2.waitKey(0)
-        cv2.destoryAllWindows()
-        #SaveVisImg(vis_img, pc_name_set, output_path)
-        
-        imgpos1 = cv2.cvtColor(vis_img,cv2.COLOR_RGB2GRAY)
-        print(imgpos1.shape)
-        height = imgpos1.shape[0]        #将tuple中的元素取出，赋值给height，width，channels
-        width = imgpos1.shape[1]
-        
-        #cv2.imshow("1", imgpos1)
-        #cv2.waitKey(0)
-        #cv2.destoryAllWindows()
-        
-        for row in range(height):    #遍历每一行
-            for col in range(width): #遍历每一列   
-                if imgpos1[row][col] == 181 or imgpos1[row][col] == 176 :
-                    imgpos1[row][col] = 1
-                else :
-                    imgpos1[row][col] = 0
-        
-        
-        left_fit, right_fit, left_lane_inds, right_lane_inds = find_line(imgpos1)
-        print(left_fit)
-        '''
+        points_near_ground = SelectPointsNearGround(points_trans_set, BV_COMMON_SETTINGS)
+        AdjustIntensity(points_near_ground, BV_COMMON_SETTINGS)
+        time2 = time.time()
 
+        bv_data = ProduceBVData(points_near_ground, BV_COMMON_SETTINGS, BV_RANGE_SETTINGS)
+        bv_label_map = Inference(model, bv_data)
+        time3 = time.time()
 
-      
+        points_class_set = GetPointsClassFromBV_one(points_trans_set, bv_label_map, BV_COMMON_SETTINGS, BV_RANGE_SETTINGS)
+        points_with_class = np.concatenate([points_trans_set, points_class_set], axis=1)
+
+        if Saving_intensity_img == True:
+            AdjustIntensity(points_with_class, BV_COMMON_SETTINGS)
+            vis_img = VisualizePointsClass(points_with_class)
+            SaveVisImg(vis_img, pc_name_set, vis_path)
+        else:
+            pass
+            #cv2.imshow("1", vis_img)
+            #cv2.waitKey(0)
+            #cv2.destoryAllWindows()
+
+        points_solid, points_dash = AdjustIntensity_fit(points_with_class, BV_COMMON_SETTINGS)
+        if points_dash.size != 0 and points_solid.size != 0:
+            points_line = np.concatenate((points_solid, points_dash), axis=0)
+        elif points_dash.size == 0 and points_solid.size != 0:
+            points_line = points_solid
+        elif points_dash.size != 0 and points_solid.size == 0:
+            points_line = points_dash
+
+        one_coef_name = pc_name_set
+        pure_name = one_coef_name.split("/")[-1][:-4]
+        line_paint_address = os.path.join(vis_path, pure_name + ".png")
+        lefty_center, righty_center, x, leftx, lefty, rightx, righty = \
+            find_line(points_line,line_paint_address,Saving_fitting_img)
+
+        point_lefty.append(lefty_center)
+        point_righty.append(righty_center)
+        index_name.append(pure_name)
+        time4 = time.time()
+        print(time4-time1,time3-time2,time4-time3)
+
+        point_raw_leftx.append(leftx)
+        point_raw_lefty.append(lefty)
+        point_raw_rightx.append(rightx)
+        point_raw_righty.append(righty)
+
+    index_name = np.vstack(index_name)
+    point_lefty = np.vstack(point_lefty)
+    point_righty = np.vstack(point_righty)
+
+    npz_name = os.path.join(output_path, subfolder.split("/")[-1] + ".npz")
+    np.savez(npz_name, point_x= x, point_lefty=point_lefty, point_righty=point_righty,
+            time_index=index_name, point_raw_leftx = point_raw_leftx, point_raw_lefty = point_raw_lefty,
+            point_raw_rightx = point_raw_rightx, point_raw_righty = point_raw_righty)
+
+if __name__ == '__main__':
+
+    model = BVParsingNet()
+    model = torch.nn.DataParallel(model, device_ids=GPU_IDs)
+    patch_replication_callback(model)
+    model = model.cuda()
+    checkpoint = torch.load(MODEL_NAME)
+    model.load_state_dict(checkpoint['state_dict'])
+    model.eval()
+
+    test_data_subfolders = glob.glob(os.path.join(TEST_DATA_FOLDER, "*"))
+    test_data_subfolders.sort()
+    for subfolder in test_data_subfolders:
+        points_class_chose (subfolder, False, False)
+    #
+    # try:
+    #     set_start_method('spawn')
+    #     pool = Pool(processes=len(test_data_subfolders))
+    #     for subfolder in test_data_subfolders:
+    #         pool.apply_async(points_class_chose, args=(subfolder,False, False))
+    #     pool.close()
+    #     pool.join()
+    # except RuntimeError:
+    #     pass

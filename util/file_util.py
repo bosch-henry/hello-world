@@ -16,7 +16,7 @@ def GetListFormTxt(list_file):
 def ReadPcdFile(file_name):
     f = open(file_name, "r")
     lines = [line.strip().split(" ") for line in f.readlines()]
-    lines = lines[11:]
+    lines = lines[3:]
 
     point_dim = len(lines[0])
     points = np.array(lines).astype("float32").reshape(-1, point_dim)
@@ -54,30 +54,22 @@ def WritePointsToFile(points, filename):
 
 
 def GetTestDataList(folder, lidar_id_list):
-    data_num = len(glob.glob(os.path.join(folder, "lidar", lidar_id_list[0], "*.pcd")))
-    lidar_name_set_list = []
-    img_name_set_list = []
+    point_name_set_list = sorted(glob.glob(os.path.join(folder, lidar_id_list[0], "*.pcd")))
+    para_name_set_list = sorted(glob.glob(os.path.join(folder, lidar_id_list[0], "*.txt")))
+    data_num = len(point_name_set_list)
+    '''
     for j in range(data_num):
         lidar_name_set_list.append(dict())
-        img_name_set_list.append(dict())
-    
-    para_name_list = {}
 
+    
     for lidar_id in lidar_id_list:
         lidar_list_temp = glob.glob(os.path.join(folder, "lidar", lidar_id, "*.pcd"))
         lidar_list_temp.sort()
-        img_list_temp = glob.glob(os.path.join(folder, "image", lidar_id, "*.jpg"))
-        img_list_temp.sort()
-
-        para_name_list[lidar_id] = os.path.join(folder, "parameter", lidar_id, "config.txt")
 
         for j in range(data_num):
             lidar_name_set_list[j][lidar_id] = lidar_list_temp[j]
-            if j < len(img_list_temp):
-                img_name_set_list[j][lidar_id] = img_list_temp[j]
-
-
-    return lidar_name_set_list, img_name_set_list, para_name_list
+    '''
+    return point_name_set_list, data_num, para_name_set_list
 
 
 
@@ -209,7 +201,7 @@ def ReadSelectedPara(para_name_list):
     for lidar_id in lidar_id_list:
         para_file = para_name_list[lidar_id]
         para[lidar_id] = {}
-        if not os.path.exists(para_file):
+        if not os.path.exists(para_name_list):
             para[lidar_id]["K"] = K_default[lidar_id]
             para[lidar_id]["P"] = P_default[lidar_id]
             para[lidar_id]["P_world"] = P_world_default[lidar_id]
@@ -284,7 +276,7 @@ def OutputPointsWithClass(points_set, points_class_set, output_path, pc_name_set
 
 
 def SaveVisImg(vis_img, pc_name_set, output_path):
-    one_pc_name = pc_name_set[list(pc_name_set)[0]]
+    one_pc_name = pc_name_set
 
     pure_name = one_pc_name.split("/")[-1][:-4]
     output_name = os.path.join(output_path, pure_name+".jpg")
