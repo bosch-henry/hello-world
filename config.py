@@ -26,7 +26,7 @@ BV_COMMON_SETTINGS = {
 MODEL_NAME = "./model/livox_lane_det.pth"
 GPU_IDs = [0]
 
-TEST_DATA_FOLDER = "/media/henry/7457C_Lidar/10minutes_test"
+TEST_DATA_FOLDER = "/media/henry/7457C_Lidar/10minutes_test/pycharm_cal"
 #RESULT_FOLDER = "./result/Second_kepper"
 #VIS_FOLDER = "./result/points_vis/"
 #POINTS_WITH_CLASS_FOLDER = "./result/points_with_class"

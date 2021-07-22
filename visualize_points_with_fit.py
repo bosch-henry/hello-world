@@ -134,7 +134,7 @@ if __name__ == '__main__':
     test_data_subfolders = glob.glob(os.path.join(TEST_DATA_FOLDER, "*"))
     test_data_subfolders.sort()
     for subfolder in test_data_subfolders:
-        points_class_chose (subfolder, False, False)
+        points_class_chose (subfolder, True, True)
     #
     # try:
     #     set_start_method('spawn')
