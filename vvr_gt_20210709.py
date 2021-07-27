@@ -11,7 +11,7 @@ from kpi_calculate_list import *
 import matplotlib.pyplot as plt
 import math
 import csv
-from openpyxl import load_workbook
+#from openpyxl import load_workbook
 from binascii import a2b_hex
 from data_process.point_transform import *
 
@@ -99,7 +99,7 @@ class gps_kpi_calculate():
         self.right_standard = sorted(right_standard.items(), key=lambda dd: dd[1]['Longitude'])
         return 0
 
-    def dasy_data_get(self):
+    def dasy_data_get(self,dasy_folder_path):
 
         # get all the mpc_MF4_folder
         #current_path = os.path.dirname(os.path.abspath(__file__))
@@ -111,7 +111,7 @@ class gps_kpi_calculate():
         for MF4_file in mpc_folder:
             if MF4_file[-4:] != '.MF4':
                 continue
-            else:,
+            else:
                 MF4_file_path = os.path.join(dasy_folder_path, MF4_file)
                 mdf = MDF(MF4_file_path, channels=vvr_channels)
 
@@ -992,8 +992,8 @@ if __name__ == '__main__':
     cal = gps_kpi_calculate()
     # ret = cal.asc_data_get()
     #ret = cal.excel_data_get()
-    #ret = cal.dasy_data_get()
-    rer = cal.lidar_data_get()
-    ret = cal.pointdata_compare_left()
+    ret = cal.dasy_data_get("/home/henry/test_data/GT_VVR/VVR_0715")
+    # rer = cal.lidar_data_get()
+    # ret = cal.pointdata_compare_left()
     # ret = cal.pointdata_compare_right()
 
