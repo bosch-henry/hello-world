@@ -994,6 +994,6 @@ if __name__ == '__main__':
     #ret = cal.excel_data_get()
     ret = cal.dasy_data_get("/home/henry/test_data/GT_VVR/VVR_0715")
     # rer = cal.lidar_data_get()
-    # ret = cal.pointdata_compare_left()
-    # ret = cal.pointdata_compare_right()
+    ret = cal.pointdata_compare_left()
+    ret = cal.pointdata_compare_right()
 
