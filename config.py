@@ -16,7 +16,7 @@ BV_COMMON_SETTINGS = {
     # Point radius on the bird view
     "point_radius_train": 1.5,
     # If intensity value of one point is bigger thatn truncation_max_intensiy, the intensity will be set to truncation_max_intensiy
-    "truncation_max_intensiy": 0.08,
+    "truncation_max_intensiy": 0.12,
     # Intensity shift to make the area with points(intensity may be 0) different with that without points
     "train_background_intensity_shift": 0.1,
 
@@ -26,15 +26,15 @@ BV_COMMON_SETTINGS = {
 MODEL_NAME = "./model/livox_lane_det.pth"
 GPU_IDs = [0]
 
-TEST_DATA_FOLDER = "/media/henry/7457C_Lidar/10minutes_test/pycharm_cal"
+TEST_DATA_FOLDER = "/home/henry/bag_to_pcd"
 #RESULT_FOLDER = "./result/Second_kepper"
 #VIS_FOLDER = "./result/points_vis/"
 #POINTS_WITH_CLASS_FOLDER = "./result/points_with_class"
 bv_settings = {
         # farthest detection distnace in front of the car
-        "max_distance": 60,
+        "max_distance": 100,
         # farthest detection distnace behind the car
-        "min_distance": -20,
+        "min_distance": 0,
         # farthest detection distance to the left of the car
         "left_distance": 20,
         # farthest detection distance to the right of the car

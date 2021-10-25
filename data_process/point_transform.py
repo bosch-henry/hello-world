@@ -27,26 +27,26 @@ P_world_default = np.array([[0.99997563, 0.00698126, 0],
 P_world_default_2 = np.array([[0.9998477, 0, 0.0174524],
                               [0, 1, 0],
                               [-0.0174524, 0, 0.9998477]]).astype("float32")
-
+'''
 Alfa = 0  * math.pi/180     #rote by x axle, roll angle
 Beta = 0  * math.pi/180     #rote by y axle, pich angle
-Gama = -0.4  * math.pi/180     #rote by z axle, yaw angle
+Gama = 0.7  * math.pi/180    #rote by z axle, yaw angle
 
 R_Alfa = np.array([[1, 0 ,0],[0, math.cos(Alfa), -math.sin(Alfa)], [0, math.sin(Alfa), math.cos(Alfa)]]).astype("float32")
 R_Beta = np.array([[math.cos(Beta), 0, math.sin(Beta)], [0, 1, 0], [-math.sin(Beta), 0, math.cos(Beta)]]).astype("float32")
 R_Gama = np.array([[math.cos(Gama), -math.sin(Gama), 0],[math.sin(Gama), math.cos(Gama), 0], [0, 0, 1]]).astype("float32")
 
 R = np.zeros((3, 4))
-T = np.array([1.354, 0, 1.452])
+T = np.array([0, 0, 0])
 R[:3, :3] = np.array([R_Alfa.dot(R_Beta).dot(R_Gama)])
 R[:, 3] = T.T
 
 P = np.vstack((R, np.array([0, 0, 0, 1])))
-'''
+
 
 def ProjectPointsToWorld_one(points_input_set):
 
-    P_world = P_world_default
+    P_world = P
 
     points0 = points_input_set[:, :4].copy()
     points0[:, 3] = 1
@@ -279,11 +279,11 @@ def find_line(point, paint_address, Saving_fitting_img):
 
     plt.close()
 
-    window_height = 5
-    fit_distence = 40
-    start_distence = -15
+    window_height = 2
+    fit_distence = 41
+    start_distence = -1
     margin = 0.8
-    minpix = 8
+    minpix = 2
     nwindows = np.int((fit_distence - start_distence) / window_height)
 
     leftx = []
@@ -338,8 +338,8 @@ def find_line(point, paint_address, Saving_fitting_img):
             pass
         righty_center.append(righty_current)
 
-    size = 11
     dx = np.array(dx_center)
+    size = dx.size
 
     if (np.array(righty)).size == 0 and (np.array(lefty)).size == 0:
         righty_center = np.full((1, size), np.nan)
@@ -358,37 +358,87 @@ def find_line(point, paint_address, Saving_fitting_img):
         right_fit = np.polyfit(rightx, righty, 2)
         righty_center = center_exchange(np.array(righty_center), right_fit, dx)
 
-    #print(np.size(righty_center))
-    # if (abs(lefty_center[10]) + abs(righty_center[10])) > 6:
 
     if Saving_fitting_img == True:
         fig = plt.figure()
         ax = fig.add_subplot(1, 1, 1)
 
-        plt.scatter(lefty, leftx, s = 6,alpha=0.5, c='#A52A2A')
-        plt.scatter(righty, rightx, s=6, alpha=0.5, c='#A52A2A')
+        # plt.scatter(lefty, leftx, s = 6,alpha=0.5, c='#A52A2A')
+        # plt.scatter(righty, rightx, s = 6, alpha=0.5, c='#A52A2A')
+        plt.scatter(nonzeroy, nonzerox, s=6, alpha=0.5, c='#A52A2A')
 
-        # rect0 = plt.Rectangle(((lefty_center[0] - margin), start_distence), 2 * margin, window_height, linewidth=1, edgecolor='r', facecolor='none')
+        # rect0 = plt.Rectangle(((lefty_center[0] - margin), start_distence), 2 * margin, window_height, linewidth=1, edgecolor='k', facecolor='none')
         # ax.add_patch(rect0)
-        # rect1 = plt.Rectangle(((lefty_center[1] - margin), window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='r', facecolor='none')
+        # rect1 = plt.Rectangle(((lefty_center[1] - margin), window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='k', facecolor='none')
         # ax.add_patch(rect1)
-        # rect2 = plt.Rectangle(((lefty_center[2] - margin), 2 * window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='r', facecolor='none')
+        # rect2 = plt.Rectangle(((lefty_center[2] - margin), 2 * window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='k', facecolor='none')
         # ax.add_patch(rect2)
-        # rect3 = plt.Rectangle(((lefty_center[10] - margin), 10 * window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='r', facecolor='none')
+        # rect2 = plt.Rectangle(((lefty_center[3] - margin), 3 * window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='k', facecolor='none')
+        # ax.add_patch(rect2)
+        # rect2 = plt.Rectangle(((lefty_center[4] - margin), 4 * window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='k', facecolor='none')
+        # ax.add_patch(rect2)
+        # rect2 = plt.Rectangle(((lefty_center[5] - margin), 5 * window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='k', facecolor='none')
+        # ax.add_patch(rect2)
+        # rect2 = plt.Rectangle(((lefty_center[6] - margin), 6 * window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='k', facecolor='none')
+        # ax.add_patch(rect2)
+        # rect2 = plt.Rectangle(((lefty_center[7] - margin), 7 * window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='k', facecolor='none')
+        # ax.add_patch(rect2)
+        # rect2 = plt.Rectangle(((lefty_center[8] - margin), 8 * window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='k', facecolor='none')
+        # ax.add_patch(rect2)
+        # rect3 = plt.Rectangle(((lefty_center[9] - margin), 9 * window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='k', facecolor='none')
         # ax.add_patch(rect3)
-        # rect4 = plt.Rectangle(((righty_center[10] - margin), 10 * window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='r', facecolor='none')
+        # rect3 = plt.Rectangle(((lefty_center[10] - margin), 10 * window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='k', facecolor='none')
+        # ax.add_patch(rect3)
+        # rect3 = plt.Rectangle(((lefty_center[11] - margin), 11 * window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='k', facecolor='none')
+        # ax.add_patch(rect3)
+        # rect3 = plt.Rectangle(((lefty_center[12] - margin), 12 * window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='k', facecolor='none')
+        # ax.add_patch(rect3)
+        # rect3 = plt.Rectangle(((lefty_center[13] - margin), 13 * window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='k', facecolor='none')
+        # ax.add_patch(rect3)
+        # rect4 = plt.Rectangle(((righty_center[13] - margin), 13 * window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='k', facecolor='none')
         # ax.add_patch(rect4)
-        #
-        # #plt.plot(left_fited,x)
-        # #plt.plot(right_fited,x)
+        # rect4 = plt.Rectangle(((righty_center[12] - margin), 12 * window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='k', facecolor='none')
+        # ax.add_patch(rect4)
+        # rect4 = plt.Rectangle(((righty_center[11] - margin), 11 * window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='k', facecolor='none')
+        # ax.add_patch(rect4)
+        # rect4 = plt.Rectangle(((righty_center[10] - margin), 10 * window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='k', facecolor='none')
+        # ax.add_patch(rect4)
+        # rect4 = plt.Rectangle(((righty_center[9] - margin), 9 * window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='k', facecolor='none')
+        # ax.add_patch(rect4)
+        # rect4 = plt.Rectangle(((righty_center[8] - margin), 8 * window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='k', facecolor='none')
+        # ax.add_patch(rect4)
+        # rect4 = plt.Rectangle(((righty_center[7] - margin), 7 * window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='k', facecolor='none')
+        # ax.add_patch(rect4)
+        # rect4 = plt.Rectangle(((righty_center[6] - margin), 6 * window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='k', facecolor='none')
+        # ax.add_patch(rect4)
+        # rect4 = plt.Rectangle(((righty_center[5] - margin), 5 * window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='k', facecolor='none')
+        # ax.add_patch(rect4)
+        # rect4 = plt.Rectangle(((righty_center[4] - margin), 4 * window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='k', facecolor='none')
+        # ax.add_patch(rect4)
+        # rect4 = plt.Rectangle(((righty_center[3] - margin), 3 * window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='k', facecolor='none')
+        # ax.add_patch(rect4)
+        # rect4 = plt.Rectangle(((righty_center[2] - margin), 2 * window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='k', facecolor='none')
+        # ax.add_patch(rect4)
+        # rect4 = plt.Rectangle(((righty_center[1] - margin), 1 * window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='k', facecolor='none')
+        # ax.add_patch(rect4)
+        # rect4 = plt.Rectangle(((righty_center[0] - margin), 0 * window_height + start_distence), 2 * margin, window_height, linewidth=1, edgecolor='k', facecolor='none')
+        # ax.add_patch(rect4)
 
-        plt.scatter(lefty_center, dx, s=8, alpha=0.8, c='#0000FF',marker='x')
-        plt.scatter(righty_center, dx, s=8, alpha=0.8, c='#0000FF',marker='x')
+        #plt.plot(left_fited,x)
+        #plt.plot(right_fited,x)
+
+        plt.scatter(lefty_center, dx, s=10, alpha=0.8, c='b',marker='x')
+        plt.scatter(righty_center, dx, s=10, alpha=0.8, c='b',marker='x')
+        # plt.grid()
+        plt.xlabel('m')
+        plt.ylabel('m')
+        plt.axis([-8,8,-10, 60])
+        # plt.legend()
+        plt.title('Ego line cluster and fitting')
         plt.savefig(paint_address)
-    # # plt.show()
+        # plt.show()
 
     return lefty_center, righty_center, dx, np.array(leftx), np.array(lefty), np.array(rightx), np.array(righty)
-    #return lefty_center[5:20], righty_center[5:20], dx[5:20]
 
 def if_inPoly(polygon, Points):
     line = geometry.LineString(polygon)

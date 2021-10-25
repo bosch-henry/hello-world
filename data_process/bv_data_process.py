@@ -36,10 +36,10 @@ def AdjustIntensity_fit(points, bv_common_settings):
     # #points[p_intensity > truncation_max_intensiy, 3] = truncation_max_intensiy
     # #points[:, 3] = points[:, 3] / truncation_max_intensiy
     for i,class_point in enumerate(points[:, 4]):
-        if class_point == 3 or class_point == 5 or class_point == 22 or class_point == 27:
+        if class_point == 3 or class_point == 5 or class_point == 22 :
             points_class = np.array(points[i,:2])
             points_solid.append(points_class)
-        elif class_point == 1 :
+        elif class_point == 1 or class_point == 2 or class_point == 6:
             points_class = np.array(points[i,:2])
             points_dash.append(points_class)
             
